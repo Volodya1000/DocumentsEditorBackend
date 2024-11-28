@@ -1,0 +1,64 @@
+﻿@page "/register"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<h3>Регистрация</h3>
+
+<EditForm Model="@registerRequest" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="username">Имя пользователя:</label>
+        <InputText id="username" @bind-Value="@registerRequest.UserName" />
+    </div>
+    <div>
+        <label for="email">Email:</label>
+        <InputText id="email" @bind-Value="@registerRequest.Email" />
+    </div>
+    <div>
+        <label for="password">Пароль:</label>
+        <InputText id="password" type="password" @bind-Value="@registerRequest.Password" />
+    </div>
+    <div>
+        <label for="avatar">Аватар (URL):</label>
+        <InputText id="avatar" @bind-Value="@registerRequest.Avatar" />
+    </div>
+
+    <button type="submit">Зарегистрироваться</button>
+</EditForm>
+
+@code {
+    private RegisterUserRequest registerRequest = new RegisterUserRequest();
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+           // var response = await Http.PostAsJsonAsync("register", registerRequest);
+            //if (response.IsSuccessStatusCode)
+            //{
+                Navigation.NavigateTo("/");
+            // }
+            // else
+            // {
+            //     var errorContent = await response.Content.ReadAsStringAsync();
+            //     // Display error messages to the user
+            //     Console.WriteLine($"Error: {errorContent}");
+            // }
+        }
+        catch (Exception ex)
+        {
+            // Handle unexpected errors
+            Console.WriteLine($"An unexpected error occurred: {ex.Message}");
+        }
+    }
+
+    public class RegisterUserRequest
+    {
+        public string UserName { get; set; }
+        public string Email { get; set; }
+        public string Password { get; set; }
+        public string Avatar { get; set; }
+    }
+}
