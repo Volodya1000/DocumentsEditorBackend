@@ -13,21 +13,28 @@ public static class UsersEndpoints
         return app;
     }
 
-    private static async Task<IResult> Register(
-        RegisterUserRequest  request,UsersService UserService)
+    private static async Task<IResult> Register(RegisterUserRequest request, UsersService userService)
     {
-        Guid newUserId=await UserService.Register(request.UserName, request.Email, request.Password, request.Avatar);
-        return Results.Ok(newUserId);
+        try
+        {
+            var (token, newUserId) = await userService.Register(request.UserName, request.Email, request.Password, "");
+            var result = new { Token = token, NewUserId = newUserId };
+            return Results.Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest(ex.Message);
+        }
     }
 
     private static async Task<IResult> Login(LoginUserRequest request,
         UsersService UserService,
         HttpContext context)
     {
-        var token = await UserService.Login(request.Email, request.Password);
+        var (token,id) = await UserService.Login(request.Email, request.Password);
 
         context.Response.Cookies.Append("login-cookies",token);
 
-        return Results.Ok(token);
+        return Results.Ok(new { Token = token, Id = id });
     }
 }

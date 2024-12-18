@@ -12,7 +12,7 @@ public class DocumentEntity
     public string Title { get; set; } = string.Empty;
 
 
-    [JsonIgnore]
+    //[JsonIgnore]
 
     public ICollection<UserEntity> Users { get; set; } = [];
 

@@ -4,8 +4,8 @@ namespace DocumentEditor.Application.Interfaces;
 
 public interface IUsersRepository
 {
-    public Task Add(User user);
+    public Task Add(UserDTO user);
 
-    public Task<User> GetByEmail(string email);
+    public Task<UserDTO> GetByEmail(string email);
 
 }

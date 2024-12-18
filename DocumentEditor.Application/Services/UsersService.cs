@@ -1,6 +1,7 @@
 ﻿using DocumentEditor.Application.Interfaces;
 using DocumentEditor.Application.Interfaces.Auth;
 using DocumentEditor.Core.Models;
+using System.Text.RegularExpressions;
 
 
 namespace DocumentEditor.Application.Services;
@@ -20,18 +21,35 @@ public class UsersService
         _userRepository = userRepository;
     }
 
-    public async Task<Guid> Register(string userName, string email, string password, string avatar)
+    public async Task<(string,Guid)> Register(string userName, string email, string password, string avatar)
     {
-        var hashedPasseord = _passwordHasher.Generate(password);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(password) || !IsValidPassword(password))
+            {
+                throw new Exception("Пароль должен содержать не менее 8 символов и включать хотя бы одну заглавную букву, одну строчную букву, одну цифру и один специальный символ.");
+            }
 
-        var user = User.Create(Guid.NewGuid(), email, userName, hashedPasseord, avatar, "", DateTime.Now).User;
 
-        await _userRepository.Add(user);
+            var hashedPassword = _passwordHasher.Generate(password);
+            var userCreationResult = UserDTO.Create(Guid.NewGuid(), email, userName, hashedPassword, avatar, "", DateTime.Now);
 
-        return user.Id;
+            if (userCreationResult.User == null)
+            {
+                throw new Exception(userCreationResult.Error);
+            }
+
+            await _userRepository.Add(userCreationResult.User);
+            string token = _jwtProvider.GenerateToken(userCreationResult.User);
+            return (token,userCreationResult.User.Id);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"{ex.Message}");
+        }
     }
 
-    public async Task<string> Login(string email, string password)
+    public async Task<(string,Guid)> Login(string email, string password)
     {
         var user = await _userRepository.GetByEmail(email);
 
@@ -44,6 +62,15 @@ public class UsersService
 
         var token = _jwtProvider.GenerateToken(user);
 
-        return token;
+        return (token, user.Id);
+    }
+
+    private static bool IsValidPassword(string password)
+    {
+        return password.Length >= 8 &&
+               Regex.IsMatch(password, @"[A-Z]") &&
+               Regex.IsMatch(password, @"[a-z]") &&
+               Regex.IsMatch(password, @"[0-9]") &&
+               Regex.IsMatch(password, @"[\W_]");
     }
 }

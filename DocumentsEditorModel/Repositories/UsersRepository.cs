@@ -11,7 +11,7 @@ public class UsersRepository:IUsersRepository
     public UsersRepository(DocumentEditorContext context)
     {  _context = context; }
 
-    public async Task Add(User user)
+    public async Task Add(UserDTO user)
     {
         var userEntity= new UserEntity()
         {
@@ -27,14 +27,14 @@ public class UsersRepository:IUsersRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<User> GetByEmail(string email)
+    public async Task<UserDTO> GetByEmail(string email)
     {
         var userEntity = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == email) ??throw new Exception();
         
 
-        var user = User.Create(
+        var user = UserDTO.Create(
             userEntity.Id,
             userEntity.Email,
             userEntity.UserName,
@@ -47,19 +47,4 @@ public class UsersRepository:IUsersRepository
         return user; 
     }
 
-
-    public void EditBirthDate(Guid Id, DateTime NewBirthDate)
-    {
-
-    }
-
-    public void EditContactIndo(Guid Id, string NewContactInfo)
-    {
-
-    }
-
-    public void EditAvatar(Guid Id)
-    {
-
-    }
 }

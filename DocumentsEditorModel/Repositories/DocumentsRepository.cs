@@ -1,5 +1,8 @@
-﻿using DocumentsEditorModel.Entities;
+﻿using DocumentEditor.Core.Models;
+using DocumentEditor.Core.Models.DocumentEditor.Core.Models;
+using DocumentsEditorModel.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection.Metadata;
 
 namespace DocumentsEditorModel.Systems;
 
@@ -68,7 +71,7 @@ public class DocumentsRepository
         return document;
     }
 
-    public async Task<bool> EditDocument(Guid documentId, string newContent, Guid editorId)
+    public async Task<bool> EditDocument(Guid documentId, string newContent, Guid editorId, string newTitle)
     {
         var document = await _context.Documents.FindAsync(documentId);
 
@@ -76,7 +79,7 @@ public class DocumentsRepository
             return false;
 
         document.Content = newContent;
-
+        document.Title = newTitle;
         await _context.SaveChangesAsync();
 
         return true;
@@ -89,14 +92,42 @@ public class DocumentsRepository
             .ToListAsync();
     }
 
-    public async Task<DocumentEntity?> GetDocument(Guid documentId)
+    public async Task<DocumentDTO?> GetDocument(Guid documentId, Guid userId)
     {
-        return await _context.Documents
+        if (!await UserHasPermission(userId, documentId, "Read"))
+            return null;
+
+        var document = await _context.Documents
             .Include(d => d.Users) 
             .Include(d => d.UserRoleInDocuments) 
                 .ThenInclude(ur => ur.Role) 
-            .FirstOrDefaultAsync(d => d.Id == documentId); 
+            .FirstOrDefaultAsync(d => d.Id == documentId);
+
+        if (document == null) return null;
+
+        var userRole = document.UserRoleInDocuments.FirstOrDefault(ur => ur.UserId == userId);
+        var userRoleName = userRole != null ? userRole.Role.Name : null; 
+
+        var otherUserRoles = document.UserRoleInDocuments
+            .Where(ur => ur.UserId != userId) 
+            .Select(ur => new UserRoleInfoDTO(
+                ur.UserId,
+                _context.Users.FirstOrDefault(u => u.Id == ur.UserId)?.UserName ?? "Unknown", 
+                ur.Role.Name,
+                ur.RoleId 
+            ))
+            .ToList();
+
+        return DocumentDTO.Create(
+            document.Id,
+            document.Title,
+            document.Content,
+            userRoleName, 
+            otherUserRoles 
+        );
     }
+
+
 
     public async Task<bool> DeleteDocument(Guid documentId, Guid deleterId)
     {
@@ -111,6 +142,58 @@ public class DocumentsRepository
 
         return true;
     }
+
+
+    public async Task<List<DocumentDTO>> GetAllDocuments(Guid userId)
+    {
+        var documents = await _context.Documents
+            .Include(d => d.Users) 
+            .Include(d => d.UserRoleInDocuments) 
+                .ThenInclude(ur => ur.Role) 
+            .Where(d => d.UserRoleInDocuments.Any(ur => ur.UserId == userId)) 
+            .ToListAsync();
+
+        return documents.Select(d =>
+        {
+            var userRole = d.UserRoleInDocuments.FirstOrDefault(ur => ur.UserId == userId);
+            var userRoleName = userRole?.Role?.Name;
+
+            var otherUserRoles = d.UserRoleInDocuments
+                .Where(ur => ur.UserId != userId) 
+                .Select(ur => new UserRoleInfoDTO(
+                    ur.UserId,
+                    _context.Users.FirstOrDefault(u => u.Id == ur.UserId)?.UserName ?? "Unknown",
+                    ur.Role.Name,
+                    ur.RoleId 
+                ))
+                .ToList();
+
+            return DocumentDTO.Create(
+                d.Id,
+                d.Title,
+                d.Content,
+                userRoleName, 
+                otherUserRoles 
+            );
+        }).ToList();
+    }
+
+    public async Task<List<UserDTO>> GetUsersWithoutRoleInDocument(Guid documentId)
+    {
+        var usersWithoutRoles = await _context.Users
+            .Where(u => !u.UserRoleInDocuments.Any(ur => ur.DocumentId == documentId))
+            .Select(u => UserDTO.Create(u.Id, u.Email, u.UserName, u.PasswordHash, u.Avatar, u.ContactInfo, u.BirthDate).User)
+            .ToListAsync();
+
+        return usersWithoutRoles;
+    }
+
+
+
+
+
+
+
     #endregion
 
     #region RoleOperations
@@ -134,7 +217,7 @@ public class DocumentsRepository
             return false; 
         }
 
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name.ToLower() == roleName);
         if (role == null)
         {
             return false; 

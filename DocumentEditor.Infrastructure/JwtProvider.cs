@@ -12,7 +12,7 @@ public class JwtProvider(IOptions<JwtOptions> options) : IJwtProvider
 {
     private readonly JwtOptions _options = options.Value;
 
-    public string GenerateToken(User user)
+    public string GenerateToken(UserDTO user)
     {
         Claim[] claims = [new("userId", user.Id.ToString())];
 
